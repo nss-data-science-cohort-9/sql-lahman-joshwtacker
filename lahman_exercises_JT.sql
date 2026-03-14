@@ -230,16 +230,112 @@ ORDER BY
  (If they were not inducted into the hall of fame, put a null in that column.) Note that a player being inducted into the hall of fame is indicated by a 'Y' in the **inducted** column 
  of the halloffame table.*/
 
+WITH hits_over_3000 AS (
+SELECT
+	b.playerid,
+	sum(b.h) AS career_hits
+FROM
+	batting b
+GROUP BY
+	b.playerid
+ORDER BY
+	career_hits DESC
+)
+SELECT
+	p.namelast,
+	p.namefirst,
+	h.career_hits,
+	hf.yearid AS hall_of_fame_year
+FROM
+	hits_over_3000 h
+JOIN people p
+ON
+	h.playerid = p.playerid
+LEFT JOIN halloffame hf
+ON
+	h.playerid = hf.playerid
+	AND hf.inducted = 'Y'
+WHERE
+	career_hits >= 3000
+ORDER BY
+	h.career_hits DESC;
+
 /*9. Find all players who had at least 1,000 hits for two different teams. Report those players' full names.*/
+
+SELECT
+	p.namefirst,
+	p.namelast
+FROM
+	(
+	SELECT
+		playerid
+	FROM
+		(
+		SELECT
+			b.playerid,
+			b.teamid,
+			sum(b.h) AS team_hits
+		FROM
+			batting b
+		GROUP BY
+			b.playerid,
+			b.teamid
+		HAVING
+			sum(b.h) >= 1000
+)
+	GROUP BY
+		playerid
+	HAVING
+		count(teamid) >= 2 )
+players
+JOIN people p 
+ON
+	players.playerid = p.playerid
+ORDER BY
+	p.namelast;
 
 /*10. Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home 
  run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.*/
+
+WITH career_hr AS 
+(
+SELECT
+	b.playerid,
+	max(b.hr) AS career_max_homeruns,
+	count(DISTINCT b.yearid) AS seasons_played
+FROM
+	batting b
+GROUP BY
+	b.playerid
+)
+SELECT
+	p.namefirst,
+	p.namelast,
+	b.hr AS hr_2016
+FROM
+	batting b
+JOIN career_hr AS c 
+ON
+	b.playerid = c.playerid
+JOIN people p
+ON
+	b.playerid = p.playerid
+WHERE
+	b.yearid = 2016
+	AND b.hr = c.career_max_homeruns
+	AND b.hr > 0
+	AND c.seasons_played >= 10
+ORDER BY
+	hr_2016 DESC;
+
+
 
 /*After finishing the above questions, here are some open-ended questions to consider.
 
 **Open-ended questions**
 
-11. Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
+11. Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole 
+league tend to increase together, so you may want to look on a year-by-year basis.
 
 12. In this question, you will explore the connection between number of wins and attendance.
 
